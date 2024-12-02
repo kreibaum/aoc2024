@@ -11,7 +11,50 @@ pub fn read_file(filename: &str) -> String {
 }
 
 fn main() {
-    println!("Hello, world!");
+    // Read file for day 2, then parse it line by line.
+    let mut parsed : Vec<Vec<i64>> = vec![];
+    let file = read_file("day2");
+    for line in file.lines() {
+        let mut row : Vec<i64> = vec![];
+        for num in line.split_whitespace() {
+            row.push(num.parse().unwrap());
+        }
+        parsed.push(row);
+    }
+    println!("{:?}", parsed);
+
+    let mut safe_count = 0;
+    for row in parsed.iter() {
+        println!("Row: {:?}", row);
+        let is_safe = is_strictly_increasing_max_n(row, 3) || is_strictly_decreasing_max_n(row, 3);
+        if is_safe {
+            safe_count += 1;
+        }
+    }
+    println!("Safe count: {}", safe_count);
+}
+
+fn is_strictly_increasing_max_n(row: &[i64], max_step: i64) -> bool {
+    for i in 0..row.len() - 1 {
+        let step = row[i + 1] - row[i];
+        if step > max_step || step <= 0 {
+            return false;
+        }
+    }
+    true
+}
+
+fn is_strictly_decreasing_max_n(row: &[i64], max_step: i64) -> bool {
+    for i in 0..row.len() - 1 {
+        let step = row[i] - row[i + 1];
+        if step > max_step || step <= 0 {
+            return false;
+        }
+    }
+    true
+}
+
+fn day1() {
     let mut left_list = vec![];
     let mut right_list = vec![];
 
@@ -32,6 +75,10 @@ fn main() {
     // Sort both lists
     left_list.sort();
     right_list.sort();
+
+    // Print first 5 entries of each list
+    println!("Left list: {:?}", &left_list[0..5]);
+    println!("Right list: {:?}", &right_list[0..5]);
 
     // Find the total distance
     let mut total_distance = 0;
