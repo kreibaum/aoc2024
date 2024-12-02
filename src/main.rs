@@ -26,32 +26,61 @@ fn main() {
     let mut safe_count = 0;
     for row in parsed.iter() {
         println!("Row: {:?}", row);
-        let is_safe = is_strictly_increasing_max_n(row, 3) || is_strictly_decreasing_max_n(row, 3);
+        let is_safe = is_strictly_ordered_max_n(row, 1) || is_strictly_ordered_max_n(row, -1);
         if is_safe {
             safe_count += 1;
         }
     }
     println!("Safe count: {}", safe_count);
-}
 
-fn is_strictly_increasing_max_n(row: &[i64], max_step: i64) -> bool {
-    for i in 0..row.len() - 1 {
-        let step = row[i + 1] - row[i];
-        if step > max_step || step <= 0 {
-            return false;
+    assert_eq!(safe_count, 321);
+
+
+    let mut safe_count = 0;
+    for row in parsed.iter() {
+        println!("Row: {:?}", row);
+        let is_safe = is_ordered_after_removing_one(row, 1) || is_ordered_after_removing_one(row, -1);
+        if is_safe {
+            safe_count += 1;
         }
     }
-    true
+    println!("Safe count: {}", safe_count);
+
+    assert_eq!(safe_count, 386);
 }
 
-fn is_strictly_decreasing_max_n(row: &[i64], max_step: i64) -> bool {
+const MAX_STEP: i64 = 3;
+
+fn is_strictly_ordered_max_n(row: &[i64], flip: i64) -> bool {
+    find_ordering_problem(row, flip).is_none()
+}
+
+fn find_ordering_problem(row: &[i64], flip: i64)-> Option<usize> {
     for i in 0..row.len() - 1 {
-        let step = row[i] - row[i + 1];
-        if step > max_step || step <= 0 {
-            return false;
+        let step = (row[i + 1] - row[i]) * flip;
+        if step > MAX_STEP || step <= 0 {
+            return Some(i);
         }
     }
-    true
+    None
+}
+
+fn is_ordered_after_removing_one(row: &[i64], flip: i64) -> bool {
+    let Some(defect) = find_ordering_problem(row, flip) else {
+        return true;
+    };
+    // Try removing the problem element
+    let mut new_row = row.to_vec();
+    new_row.remove(defect);
+    if is_strictly_ordered_max_n(&new_row, flip) {
+        return true;
+    } else if defect == row.len() - 2 {
+        return true;
+    }
+    // We might also need to remove the element after the defect
+    new_row = row.to_vec();
+    new_row.remove(defect + 1);
+    is_strictly_ordered_max_n(&new_row, flip)
 }
 
 fn day1() {
