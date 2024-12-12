@@ -85,20 +85,46 @@ fn run_day12_part1(filename: &str) {
 
     // The price of fence required for a region is found by multiplying that region's area by its perimeter
     let mut total_price = 0;
+    let mut reduced_price = 0;
+
+    // Count unbroken edges:
+    let edge_count_horizontal = count_horizontal_unbroken_edges(
+        &original_garden_at_coordinate,
+        &mut merges,
+        &gardens,
+        grid.size(),
+    );
+    let edge_count_vertical = count_vertical_unbroken_edges(
+        &original_garden_at_coordinate,
+        &mut merges,
+        &gardens,
+        grid.size(),
+    );
 
     // Print all gardens by size and area (and index)
-    for (_, garden) in gardens.iter() {
-        /*println!(
+    for (index, garden) in gardens.iter() {
+        println!(
             "Garden {} has area {} and circumference {}",
             index, garden.area, garden.circumference
-        );*/
+        );
         total_price += garden.area * garden.circumference;
+        let edge_count =
+            edge_count_horizontal.get(index).unwrap() + edge_count_vertical.get(index).unwrap();
+        println!(
+            "Unbroken edges: {} + {} = {}",
+            edge_count_horizontal.get(index).unwrap(),
+            edge_count_vertical.get(index).unwrap(),
+            edge_count
+        );
+        reduced_price += garden.area * (edge_count);
     }
     println!("Total price: {}", total_price);
+    println!("Reduced price: {}", reduced_price);
+    println!();
 }
 
 // Finds the garden at a given coordinate
-pub fn find_merged_garden_index(
+fn find_merged_garden_index(
     original_garden_at_coordinate: &HashMap<(i16, i16), usize>,
     merges: &mut HashMap<usize, usize>,
     x: i16,
@@ -108,6 +134,19 @@ pub fn find_merged_garden_index(
         .get(&(x, y))
         .expect("No original garden defined!");
     find_garden_index(merges, *garden_index)
+}
+
+fn try_find_merged_garden_index(
+    original_garden_at_coordinate: &HashMap<(i16, i16), usize>,
+    merges: &mut HashMap<usize, usize>,
+    x: i16,
+    y: i16,
+) -> Option<usize> {
+    let garden_index = original_garden_at_coordinate.get(&(x, y));
+    match garden_index {
+        Some(garden_index) => Some(find_garden_index(merges, *garden_index)),
+        None => None,
+    }
 }
 
 // Finds the root garden for a given garden index, compressing the chain along the way.
@@ -127,4 +166,131 @@ fn find_garden_index(merges: &mut HashMap<usize, usize>, garden_index: usize) ->
 struct Garden {
     area: usize,
     circumference: usize,
+}
+
+fn count_horizontal_unbroken_edges(
+    original_garden_at_coordinate: &HashMap<(i16, i16), usize>,
+    merges: &mut HashMap<usize, usize>,
+    gardens: &HashMap<usize, Garden>,
+    (w, h): (i16, i16),
+) -> HashMap<usize, usize> {
+    let mut result = HashMap::new();
+    for (garden_index, _) in gardens {
+        let mut total = 0;
+        for scan_y in -1..h {
+            total += count_horizontal_unbroken_edges_in_row(
+                original_garden_at_coordinate,
+                merges,
+                *garden_index,
+                scan_y,
+                w,
+            );
+        }
+        result.insert(*garden_index, total);
+    }
+    result
+}
+
+fn count_vertical_unbroken_edges(
+    original_garden_at_coordinate: &HashMap<(i16, i16), usize>,
+    merges: &mut HashMap<usize, usize>,
+    gardens: &HashMap<usize, Garden>,
+    (w, h): (i16, i16),
+) -> HashMap<usize, usize> {
+    let mut result = HashMap::new();
+    for (garden_index, _) in gardens {
+        let mut total = 0;
+        for scan_x in -1..w {
+            total += count_vertical_unbroken_edges_in_row(
+                original_garden_at_coordinate,
+                merges,
+                *garden_index,
+                scan_x,
+                h,
+            );
+        }
+        result.insert(*garden_index, total);
+    }
+    result
+}
+
+/// Counts all the edges that are between row scan_y and scan_y + 1
+/// Works by reading a row and representing it as
+///
+///     00000111100100000
+///     00001111001100111
+///
+/// This finds four unbroken edges:
+///
+///     00000111100100000
+///         -   - -   ---
+///     00001111001100111
+fn count_horizontal_unbroken_edges_in_row(
+    original_garden_at_coordinate: &HashMap<(i16, i16), usize>,
+    merges: &mut HashMap<usize, usize>,
+    garden_index: usize,
+    scan_y: i16,
+    max_x: i16,
+) -> usize {
+    // On the left of the map, there is no garden.
+    let mut last_top = false;
+    let mut last_bottom = false;
+    let mut unbroken_edges = 0;
+
+    for x in 0..max_x {
+        let new_top =
+            try_find_merged_garden_index(original_garden_at_coordinate, merges, x, scan_y)
+                == Some(garden_index);
+        let new_bottom =
+            try_find_merged_garden_index(original_garden_at_coordinate, merges, x, scan_y + 1)
+                == Some(garden_index);
+
+        let fully_ouside = !new_top && !new_bottom;
+        let fully_insie = new_top && new_bottom;
+        let same_as_before = last_top == new_top && last_bottom == new_bottom;
+
+        if !same_as_before && !fully_ouside && !fully_insie {
+            unbroken_edges += 1;
+        }
+
+        last_top = new_top;
+        last_bottom = new_bottom;
+    }
+
+    unbroken_edges
+}
+
+fn count_vertical_unbroken_edges_in_row(
+    original_garden_at_coordinate: &HashMap<(i16, i16), usize>,
+    merges: &mut HashMap<usize, usize>,
+    garden_index: usize,
+    scan_x: i16,
+    max_y: i16,
+) -> usize {
+    // On the left of the map, there is no garden.
+    let mut last_top = false;
+    let mut last_bottom = false;
+    let mut unbroken_edges = 0;
+
+    for y in 0..max_y {
+        let new_top =
+            try_find_merged_garden_index(original_garden_at_coordinate, merges, scan_x, y)
+                == Some(garden_index);
+        let new_bottom =
+            try_find_merged_garden_index(original_garden_at_coordinate, merges, scan_x + 1, y)
+                == Some(garden_index);
+
+        let fully_ouside = !new_top && !new_bottom;
+        let fully_insie = new_top && new_bottom;
+        let same_as_before = last_top == new_top && last_bottom == new_bottom;
+
+        if !same_as_before && !fully_ouside && !fully_insie {
+            unbroken_edges += 1;
+        }
+
+        last_top = new_top;
+        last_bottom = new_bottom;
+    }
+
+    unbroken_edges
 }
